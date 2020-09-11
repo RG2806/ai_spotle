@@ -1,0 +1,564 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "name": "Untitled13.ipynb",
+      "provenance": [],
+      "collapsed_sections": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "accelerator": "GPU"
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/RG2806/ai_spotle/blob/master/CNN-73%20(50%20epochs)\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "VCh_pXZ0Zqz1",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 36
+        },
+        "outputId": "5467805f-460d-4209-c3d0-573b9fb0beab"
+      },
+      "source": [
+        "!git clone https://github.com/RG2806/ai_spotle.git"
+      ],
+      "execution_count": 2,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "fatal: destination path 'ai_spotle' already exists and is not an empty directory.\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "k2zYZ0IRZ35w",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "%matplotlib inline\n",
+        "import matplotlib.pyplot as plt\n",
+        "import cv2\n",
+        "import numpy as np\n",
+        "from keras.utils import to_categorical\n",
+        "from sklearn.model_selection import train_test_split\n",
+        "\n",
+        "from keras.models import Sequential #Initialise our neural network model as a sequential network\n",
+        "from keras.layers import Conv2D #Convolution operation\n",
+        "from keras.layers.normalization import BatchNormalization\n",
+        "from keras.regularizers import l2\n",
+        "from keras.layers import Activation#Applies activation function\n",
+        "from keras.layers import Dropout#Prevents overfitting by randomly converting few outputs to zero\n",
+        "from keras.layers import MaxPooling2D # Maxpooling function\n",
+        "from keras.layers import Flatten # Converting 2D arrays into a 1D linear vector\n",
+        "from keras.layers import Dense # Regular fully connected neural network\n",
+        "from keras import optimizers\n",
+        "from keras.callbacks import ReduceLROnPlateau, EarlyStopping, TensorBoard, ModelCheckpoint\n",
+        "from sklearn.metrics import accuracy_score\n",
+        "\n",
+        "import pandas as pd\n",
+        "import keras \n",
+        "from keras.models import Sequential\n",
+        "from keras.layers import Conv2D, BatchNormalization, GlobalAveragePooling2D, MaxPooling2D, Dropout, Flatten, Dense\n",
+        "from keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau\n",
+        "from keras.utils import np_utils\n",
+        "import keras.backend as k\n",
+        "from keras.preprocessing import image\n",
+        "from keras.preprocessing.image import ImageDataGenerator\n",
+        "from keras.optimizers import Adam\n",
+        "from keras.regularizers import l2\n",
+        "from tensorflow.keras.preprocessing.image import ImageDataGenerator\n",
+        "from tensorflow.keras.layers import AveragePooling2D\n",
+        "from tensorflow.keras.layers import Dropout\n",
+        "from tensorflow.keras.layers import Flatten\n",
+        "from tensorflow.keras.layers import Dense\n",
+        "from tensorflow.keras.layers import Input\n",
+        "from tensorflow.keras.models import Model\n",
+        "from tensorflow.keras.optimizers import Adam\n",
+        "from tensorflow.keras.applications import ResNet50\n",
+        "from sklearn.metrics import classification_report\n",
+        "from imutils import paths"
+      ],
+      "execution_count": 3,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "khmywcbkbgZD",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "def load_data(dataset_path):\n",
+        "  \n",
+        "  classes = ['Fear', 'Happy', 'Sad']  #We will be dealing with seven different types of emotions.\n",
+        "\n",
+        "  data = []\n",
+        "  labels =[]\n",
+        "\n",
+        "  with open(dataset_path, 'r') as file:\n",
+        "      for line_no, line in enumerate(file.readlines()):\n",
+        "          if 0 < line_no <= 35887:\n",
+        "            line = line.split(',')\n",
+        "            image_data = np.asarray([int(x) for x in line[1:]]).reshape(48, 48)#Creating a list out of the string then converting it into a 2-Dimensional numpy array.\n",
+        "            image_data =image_data.astype(np.uint8)\n",
+        "            grayImage = cv2.cvtColor(image_data, cv2.COLOR_GRAY2BGR)\n",
+        "            #color_img = cv2.cvtColor(grayImage, cv.CV_GRAY2RGB)\n",
+        "            color_img=cv2.resize(grayImage,(224,224))\n",
+        "            data.append(np.asarray(color_img).reshape(224,224,3))\n",
+        "            labels.append(classes.index(line[0]))\n",
+        "      data = np.expand_dims(data, -1)   \n",
+        "      #labels = to_categorical(labels, num_classes = 3)\n",
+        "    \n",
+        "      return np.array(data), np.array(labels)"
+      ],
+      "execution_count": 5,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "Gt_d1_J8cUU_",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 36
+        },
+        "outputId": "28d87211-cd11-4788-d176-ef13c16f81e2"
+      },
+      "source": [
+        "dataset_path = \"/content/ai_spotle/aithon2020_level2_traning.csv\" \n",
+        "train_data, train_labels = load_data(dataset_path)\n",
+        "train_data=train_data.reshape(10817,224,224,3)\n",
+        "#train_data, test_data, train_labels, test_labels = train_test_split(data, labels, test_size = test_size,random_state = seed)\n",
+        "\n",
+        "print(\"Number of images in Training set:\", len(train_data))"
+      ],
+      "execution_count": 6,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Number of images in Training set: 10817\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "CPgk624hfuGI",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 36
+        },
+        "outputId": "a6adb27c-9221-4634-c901-dc662a06a94c"
+      },
+      "source": [
+        "train_data.shape"
+      ],
+      "execution_count": 7,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "(10817, 224, 224, 3)"
+            ]
+          },
+          "metadata": {
+            "tags": []
+          },
+          "execution_count": 7
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "g3uGfxm1cgVA",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "from sklearn.model_selection import train_test_split\n",
+        "\n",
+        "x_train, x_test, y_train, y_test = train_test_split(train_data, train_labels, test_size=0.2, random_state=101)\n",
+        "y_train = np_utils.to_categorical(y_train, 3)\n",
+        "y_test = np_utils.to_categorical(y_test, 3)"
+      ],
+      "execution_count": 8,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "saBwXLdIdwaY",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        "baseModel = ResNet50(weights=\"imagenet\", include_top=False,\n",
+        "\tinput_tensor=Input(shape=(224, 224, 3)))\n",
+        "# construct the head of the model that will be placed on top of the\n",
+        "# the base model\n",
+        "headModel = baseModel.output\n",
+        "headModel = AveragePooling2D(pool_size=(7, 7))(headModel)\n",
+        "headModel = Flatten(name=\"flatten\")(headModel)\n",
+        "headModel = Dense(256, activation=\"relu\")(headModel)\n",
+        "headModel = Dropout(0.5)(headModel)\n",
+        "headModel = Dense(3, activation=\"softmax\")(headModel)\n",
+        "# place the head FC model on top of the base model (this will become\n",
+        "# the actual model we will train)\n",
+        "model = Model(inputs=baseModel.input, outputs=headModel)\n",
+        "# loop over all layers in the base model and freeze them so they will\n",
+        "# *not* be updated during the training process\n",
+        "for layer in baseModel.layers[:-3]:\n",
+        "\tlayer.trainable = False\n",
+        "\n",
+        "opt = Adam(lr=1e-4, decay=1e-4/ 100)\n",
+        "model.compile(loss=\"categorical_crossentropy\", optimizer=opt,\n",
+        "\tmetrics=[\"accuracy\"])"
+      ],
+      "execution_count": 9,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "TH8UogCyfJQ1",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 1000
+        },
+        "outputId": "3df4b037-596b-4244-9144-1eaf60efe2a3"
+      },
+      "source": [
+        "# With Augmentation\n",
+        "bs = 32\n",
+        "epochs = 50\n",
+        "checkpointer = ModelCheckpoint('../input/model.h5', monitor='val_loss', verbose=1, save_best_only=True)\n",
+        "\n",
+        "callbacks = [checkpointer]\n",
+        "aug = ImageDataGenerator(rotation_range=20, \n",
+        "                         width_shift_range=0.1, \n",
+        "                         height_shift_range=0.1, \n",
+        "                         horizontal_flip=True, \n",
+        "                         fill_mode=\"nearest\")\n",
+        "\n",
+        "H = model.fit_generator(aug.flow(x_train, y_train, batch_size=bs),\n",
+        "                        validation_data=(x_test, y_test), \n",
+        "                        steps_per_epoch=len(x_train)//bs,\n",
+        "                        shuffle=True,\n",
+        "                        callbacks=callbacks,\n",
+        "                        epochs=epochs)\n"
+      ],
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "WARNING:tensorflow:From <ipython-input-10-5de7fd966411>:18: Model.fit_generator (from tensorflow.python.keras.engine.training) is deprecated and will be removed in a future version.\n",
+            "Instructions for updating:\n",
+            "Please use Model.fit, which supports generators.\n",
+            "Epoch 1/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 1.0264 - accuracy: 0.5202\n",
+            "Epoch 00001: val_loss improved from inf to 0.84594, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 103s 380ms/step - loss: 1.0264 - accuracy: 0.5202 - val_loss: 0.8459 - val_accuracy: 0.6363\n",
+            "Epoch 2/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.8791 - accuracy: 0.5941\n",
+            "Epoch 00002: val_loss improved from 0.84594 to 0.81026, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 99s 365ms/step - loss: 0.8791 - accuracy: 0.5941 - val_loss: 0.8103 - val_accuracy: 0.6312\n",
+            "Epoch 3/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.8341 - accuracy: 0.6190\n",
+            "Epoch 00003: val_loss improved from 0.81026 to 0.77626, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 97s 360ms/step - loss: 0.8341 - accuracy: 0.6190 - val_loss: 0.7763 - val_accuracy: 0.6553\n",
+            "Epoch 4/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.8053 - accuracy: 0.6387\n",
+            "Epoch 00004: val_loss improved from 0.77626 to 0.75970, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 97s 358ms/step - loss: 0.8053 - accuracy: 0.6387 - val_loss: 0.7597 - val_accuracy: 0.6631\n",
+            "Epoch 5/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.7841 - accuracy: 0.6455\n",
+            "Epoch 00005: val_loss improved from 0.75970 to 0.74978, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 96s 356ms/step - loss: 0.7841 - accuracy: 0.6455 - val_loss: 0.7498 - val_accuracy: 0.6654\n",
+            "Epoch 6/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.7686 - accuracy: 0.6606\n",
+            "Epoch 00006: val_loss improved from 0.74978 to 0.73775, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 96s 354ms/step - loss: 0.7686 - accuracy: 0.6606 - val_loss: 0.7377 - val_accuracy: 0.6733\n",
+            "Epoch 7/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.7470 - accuracy: 0.6625\n",
+            "Epoch 00007: val_loss improved from 0.73775 to 0.73745, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 96s 356ms/step - loss: 0.7470 - accuracy: 0.6625 - val_loss: 0.7374 - val_accuracy: 0.6728\n",
+            "Epoch 8/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.7384 - accuracy: 0.6686\n",
+            "Epoch 00008: val_loss improved from 0.73745 to 0.72097, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 97s 359ms/step - loss: 0.7384 - accuracy: 0.6686 - val_loss: 0.7210 - val_accuracy: 0.6821\n",
+            "Epoch 9/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.7205 - accuracy: 0.6859\n",
+            "Epoch 00009: val_loss improved from 0.72097 to 0.71375, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 99s 367ms/step - loss: 0.7205 - accuracy: 0.6859 - val_loss: 0.7137 - val_accuracy: 0.6899\n",
+            "Epoch 10/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.7197 - accuracy: 0.6816\n",
+            "Epoch 00010: val_loss improved from 0.71375 to 0.70980, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 101s 374ms/step - loss: 0.7197 - accuracy: 0.6816 - val_loss: 0.7098 - val_accuracy: 0.6816\n",
+            "Epoch 11/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.7137 - accuracy: 0.6854\n",
+            "Epoch 00011: val_loss improved from 0.70980 to 0.70115, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 98s 363ms/step - loss: 0.7137 - accuracy: 0.6854 - val_loss: 0.7011 - val_accuracy: 0.6825\n",
+            "Epoch 12/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6981 - accuracy: 0.6895\n",
+            "Epoch 00012: val_loss improved from 0.70115 to 0.69566, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 97s 358ms/step - loss: 0.6981 - accuracy: 0.6895 - val_loss: 0.6957 - val_accuracy: 0.6941\n",
+            "Epoch 13/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6913 - accuracy: 0.6955\n",
+            "Epoch 00013: val_loss improved from 0.69566 to 0.69554, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 96s 357ms/step - loss: 0.6913 - accuracy: 0.6955 - val_loss: 0.6955 - val_accuracy: 0.7015\n",
+            "Epoch 14/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6924 - accuracy: 0.6957\n",
+            "Epoch 00014: val_loss did not improve from 0.69554\n",
+            "270/270 [==============================] - 97s 359ms/step - loss: 0.6924 - accuracy: 0.6957 - val_loss: 0.6970 - val_accuracy: 0.6909\n",
+            "Epoch 15/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6765 - accuracy: 0.7015\n",
+            "Epoch 00015: val_loss improved from 0.69554 to 0.68786, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 98s 362ms/step - loss: 0.6765 - accuracy: 0.7015 - val_loss: 0.6879 - val_accuracy: 0.6945\n",
+            "Epoch 16/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6733 - accuracy: 0.7044\n",
+            "Epoch 00016: val_loss improved from 0.68786 to 0.67800, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 101s 373ms/step - loss: 0.6733 - accuracy: 0.7044 - val_loss: 0.6780 - val_accuracy: 0.7019\n",
+            "Epoch 17/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6659 - accuracy: 0.7083\n",
+            "Epoch 00017: val_loss did not improve from 0.67800\n",
+            "270/270 [==============================] - 99s 367ms/step - loss: 0.6659 - accuracy: 0.7083 - val_loss: 0.6789 - val_accuracy: 0.6973\n",
+            "Epoch 18/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6614 - accuracy: 0.7093\n",
+            "Epoch 00018: val_loss did not improve from 0.67800\n",
+            "270/270 [==============================] - 98s 363ms/step - loss: 0.6614 - accuracy: 0.7093 - val_loss: 0.6912 - val_accuracy: 0.6895\n",
+            "Epoch 19/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6544 - accuracy: 0.7172\n",
+            "Epoch 00019: val_loss improved from 0.67800 to 0.67420, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 98s 361ms/step - loss: 0.6544 - accuracy: 0.7172 - val_loss: 0.6742 - val_accuracy: 0.7107\n",
+            "Epoch 20/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6533 - accuracy: 0.7142\n",
+            "Epoch 00020: val_loss improved from 0.67420 to 0.67344, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 97s 360ms/step - loss: 0.6533 - accuracy: 0.7142 - val_loss: 0.6734 - val_accuracy: 0.7116\n",
+            "Epoch 21/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6447 - accuracy: 0.7187\n",
+            "Epoch 00021: val_loss improved from 0.67344 to 0.66962, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 97s 359ms/step - loss: 0.6447 - accuracy: 0.7187 - val_loss: 0.6696 - val_accuracy: 0.7075\n",
+            "Epoch 22/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6406 - accuracy: 0.7230\n",
+            "Epoch 00022: val_loss improved from 0.66962 to 0.66364, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 97s 358ms/step - loss: 0.6406 - accuracy: 0.7230 - val_loss: 0.6636 - val_accuracy: 0.7130\n",
+            "Epoch 23/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6311 - accuracy: 0.7293\n",
+            "Epoch 00023: val_loss did not improve from 0.66364\n",
+            "270/270 [==============================] - 97s 358ms/step - loss: 0.6311 - accuracy: 0.7293 - val_loss: 0.6900 - val_accuracy: 0.7084\n",
+            "Epoch 24/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6312 - accuracy: 0.7281\n",
+            "Epoch 00024: val_loss improved from 0.66364 to 0.66250, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 101s 373ms/step - loss: 0.6312 - accuracy: 0.7281 - val_loss: 0.6625 - val_accuracy: 0.7167\n",
+            "Epoch 25/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6215 - accuracy: 0.7301\n",
+            "Epoch 00025: val_loss did not improve from 0.66250\n",
+            "270/270 [==============================] - 99s 367ms/step - loss: 0.6215 - accuracy: 0.7301 - val_loss: 0.6698 - val_accuracy: 0.7158\n",
+            "Epoch 26/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6217 - accuracy: 0.7301\n",
+            "Epoch 00026: val_loss improved from 0.66250 to 0.65801, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 99s 366ms/step - loss: 0.6217 - accuracy: 0.7301 - val_loss: 0.6580 - val_accuracy: 0.7116\n",
+            "Epoch 27/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6058 - accuracy: 0.7392\n",
+            "Epoch 00027: val_loss did not improve from 0.65801\n",
+            "270/270 [==============================] - 98s 362ms/step - loss: 0.6058 - accuracy: 0.7392 - val_loss: 0.6655 - val_accuracy: 0.7089\n",
+            "Epoch 28/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6084 - accuracy: 0.7370\n",
+            "Epoch 00028: val_loss did not improve from 0.65801\n",
+            "270/270 [==============================] - 96s 354ms/step - loss: 0.6084 - accuracy: 0.7370 - val_loss: 0.6602 - val_accuracy: 0.7107\n",
+            "Epoch 29/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5976 - accuracy: 0.7402\n",
+            "Epoch 00029: val_loss improved from 0.65801 to 0.65661, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 95s 351ms/step - loss: 0.5976 - accuracy: 0.7402 - val_loss: 0.6566 - val_accuracy: 0.7181\n",
+            "Epoch 30/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5968 - accuracy: 0.7456\n",
+            "Epoch 00030: val_loss improved from 0.65661 to 0.65225, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 95s 351ms/step - loss: 0.5968 - accuracy: 0.7456 - val_loss: 0.6522 - val_accuracy: 0.7153\n",
+            "Epoch 31/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.6050 - accuracy: 0.7403\n",
+            "Epoch 00031: val_loss did not improve from 0.65225\n",
+            "270/270 [==============================] - 95s 352ms/step - loss: 0.6050 - accuracy: 0.7403 - val_loss: 0.6558 - val_accuracy: 0.7116\n",
+            "Epoch 32/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5859 - accuracy: 0.7528\n",
+            "Epoch 00032: val_loss did not improve from 0.65225\n",
+            "270/270 [==============================] - 95s 353ms/step - loss: 0.5859 - accuracy: 0.7528 - val_loss: 0.6674 - val_accuracy: 0.7158\n",
+            "Epoch 33/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5884 - accuracy: 0.7526\n",
+            "Epoch 00033: val_loss did not improve from 0.65225\n",
+            "270/270 [==============================] - 94s 350ms/step - loss: 0.5884 - accuracy: 0.7526 - val_loss: 0.6748 - val_accuracy: 0.7047\n",
+            "Epoch 34/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5837 - accuracy: 0.7543\n",
+            "Epoch 00034: val_loss improved from 0.65225 to 0.64987, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 95s 352ms/step - loss: 0.5837 - accuracy: 0.7543 - val_loss: 0.6499 - val_accuracy: 0.7144\n",
+            "Epoch 35/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5815 - accuracy: 0.7507\n",
+            "Epoch 00035: val_loss improved from 0.64987 to 0.64610, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 95s 352ms/step - loss: 0.5815 - accuracy: 0.7507 - val_loss: 0.6461 - val_accuracy: 0.7250\n",
+            "Epoch 36/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5786 - accuracy: 0.7532\n",
+            "Epoch 00036: val_loss did not improve from 0.64610\n",
+            "270/270 [==============================] - 95s 350ms/step - loss: 0.5786 - accuracy: 0.7532 - val_loss: 0.6580 - val_accuracy: 0.7172\n",
+            "Epoch 37/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5685 - accuracy: 0.7572\n",
+            "Epoch 00037: val_loss did not improve from 0.64610\n",
+            "270/270 [==============================] - 94s 350ms/step - loss: 0.5685 - accuracy: 0.7572 - val_loss: 0.6504 - val_accuracy: 0.7140\n",
+            "Epoch 38/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5641 - accuracy: 0.7580\n",
+            "Epoch 00038: val_loss did not improve from 0.64610\n",
+            "270/270 [==============================] - 94s 350ms/step - loss: 0.5641 - accuracy: 0.7580 - val_loss: 0.6575 - val_accuracy: 0.7200\n",
+            "Epoch 39/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5689 - accuracy: 0.7575\n",
+            "Epoch 00039: val_loss did not improve from 0.64610\n",
+            "270/270 [==============================] - 95s 350ms/step - loss: 0.5689 - accuracy: 0.7575 - val_loss: 0.6602 - val_accuracy: 0.7213\n",
+            "Epoch 40/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5591 - accuracy: 0.7615\n",
+            "Epoch 00040: val_loss did not improve from 0.64610\n",
+            "270/270 [==============================] - 94s 349ms/step - loss: 0.5591 - accuracy: 0.7615 - val_loss: 0.6533 - val_accuracy: 0.7167\n",
+            "Epoch 41/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5577 - accuracy: 0.7638\n",
+            "Epoch 00041: val_loss did not improve from 0.64610\n",
+            "270/270 [==============================] - 95s 352ms/step - loss: 0.5577 - accuracy: 0.7638 - val_loss: 0.6461 - val_accuracy: 0.7209\n",
+            "Epoch 42/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5603 - accuracy: 0.7628\n",
+            "Epoch 00042: val_loss improved from 0.64610 to 0.64577, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 95s 352ms/step - loss: 0.5603 - accuracy: 0.7628 - val_loss: 0.6458 - val_accuracy: 0.7269\n",
+            "Epoch 43/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5564 - accuracy: 0.7664\n",
+            "Epoch 00043: val_loss did not improve from 0.64577\n",
+            "270/270 [==============================] - 95s 353ms/step - loss: 0.5564 - accuracy: 0.7664 - val_loss: 0.6466 - val_accuracy: 0.7250\n",
+            "Epoch 44/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5512 - accuracy: 0.7659\n",
+            "Epoch 00044: val_loss did not improve from 0.64577\n",
+            "270/270 [==============================] - 95s 351ms/step - loss: 0.5512 - accuracy: 0.7659 - val_loss: 0.6463 - val_accuracy: 0.7278\n",
+            "Epoch 45/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5572 - accuracy: 0.7595\n",
+            "Epoch 00045: val_loss improved from 0.64577 to 0.63859, saving model to ../input/model.h5\n",
+            "270/270 [==============================] - 95s 350ms/step - loss: 0.5572 - accuracy: 0.7595 - val_loss: 0.6386 - val_accuracy: 0.7283\n",
+            "Epoch 46/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5425 - accuracy: 0.7699\n",
+            "Epoch 00046: val_loss did not improve from 0.63859\n",
+            "270/270 [==============================] - 95s 351ms/step - loss: 0.5425 - accuracy: 0.7699 - val_loss: 0.6474 - val_accuracy: 0.7232\n",
+            "Epoch 47/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5326 - accuracy: 0.7779\n",
+            "Epoch 00047: val_loss did not improve from 0.63859\n",
+            "270/270 [==============================] - 95s 354ms/step - loss: 0.5326 - accuracy: 0.7779 - val_loss: 0.6599 - val_accuracy: 0.7200\n",
+            "Epoch 48/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5464 - accuracy: 0.7691\n",
+            "Epoch 00048: val_loss did not improve from 0.63859\n",
+            "270/270 [==============================] - 94s 349ms/step - loss: 0.5464 - accuracy: 0.7691 - val_loss: 0.6436 - val_accuracy: 0.7292\n",
+            "Epoch 49/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5318 - accuracy: 0.7751\n",
+            "Epoch 00049: val_loss did not improve from 0.63859\n",
+            "270/270 [==============================] - 94s 348ms/step - loss: 0.5318 - accuracy: 0.7751 - val_loss: 0.6520 - val_accuracy: 0.7213\n",
+            "Epoch 50/50\n",
+            "270/270 [==============================] - ETA: 0s - loss: 0.5279 - accuracy: 0.7774\n",
+            "Epoch 00050: val_loss did not improve from 0.63859\n",
+            "270/270 [==============================] - 94s 348ms/step - loss: 0.5279 - accuracy: 0.7774 - val_loss: 0.6465 - val_accuracy: 0.7274\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "TzBA5GRFfOdT",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 74
+        },
+        "outputId": "b3e30c5e-c192-41ff-a440-32507a191366"
+      },
+      "source": [
+        "scores = model.evaluate(x_test, y_test, batch_size=bs)\n",
+        "print(\"Loss: \" + str(scores[0]))\n",
+        "print(\"Accuracy: \" + str(scores[1]))"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "68/68 [==============================] - 6s 94ms/step - loss: 0.6533 - accuracy: 0.7352\n",
+            "Loss: 0.6533129811286926\n",
+            "Accuracy: 0.7352125644683838\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "knI83WZCjNuk",
+        "colab_type": "code",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 34
+        },
+        "outputId": "4f9525e7-b8ac-49b0-fea2-d3fca8d8c236"
+      },
+      "source": [
+        "model.save_weights(\"/content/model.h5\")\n",
+        "print(\"Saved model to disk\")"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "text": [
+            "Saved model to disk\n"
+          ],
+          "name": "stdout"
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "u0taaw-mjrGB",
+        "colab_type": "code",
+        "colab": {}
+      },
+      "source": [
+        ""
+      ],
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
